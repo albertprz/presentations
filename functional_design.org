@@ -1,0 +1,74 @@
+#+REVEAL_HLEVEL: 1
+#+REVEAL_INIT_OPTIONS: transition: 'cube'
+#+REVEAL_THEME: moon
+#+EXPORT_AUTHOR: Alberto Perez Lopez
+
+#+title: Functional Design in Scala
+
+* Explicit composition
+- Composition is almost always necessary when designing complex systems
+- Explicit composition can be a useful principle in order to achieve a simple, modular and clear design
+- Scala favours explicit composition (ususally through higher order combinators / DSLs) in contrast to many languages that favour a more implicit ad-hoc approach to composition.
+
+** Applicative style
+
+Used for sequencing independent operations
+
+Without a context
+#+BEGIN_SRC scala
+def createUser (userId: String): Unit =
+  logInfo ("Processing user: " + userId) ;
+    persistUserInDB  userId ;
+    sendNewUserEvent userId
+#+END_SRC
+
+Within an explicit context
+#+BEGIN_SRC scala
+def createUser (userId: String): IO[Unit] =
+  logInfo ("Processing user: " + userId) *>
+    persistUserInDB  userId *>
+    sendNewUserEvent userId
+#+END_SRC
+
+** Monadic style
+
+Used for sequencing dependent operations
+
+Without a context
+#+BEGIN_SRC scala
+def formatInPlace (inputPath: String, outputPath: String): Unit
+
+  readFile(inputPath)
+    .pipe(format)
+    .pipe(writeFile(outputPath))
+#+END_SRC
+
+Within an explicit context
+#+BEGIN_SRC scala
+def formatInPlace (inputPath: String, outputPath: String): IO[Unit]
+  readFile(inputPath)
+    .flatMap(format)
+    .flatMap(writeFile)
+#+END_SRC
+
+
+** Arrow style
+
+Used for sequencing dependent operations
+ (via composition)
+
+Without a context
+#+BEGIN_SRC scala
+def formatInPlace (outputPath: String): String => Unit
+  readFile
+    .andThen(format)
+    .andThen(writeFile(outputPath))
+#+END_SRC
+
+Within an explicit context
+#+BEGIN_SRC scala
+def formatInPlace (outputPath: String): String => IO[Unit]
+  readFile
+    >>> format
+    >>> writeFile(outputPath)
+#+END_SRC
