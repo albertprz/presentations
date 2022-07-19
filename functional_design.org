@@ -6,69 +6,97 @@
 #+title: Functional Design in Scala
 
 * Explicit composition
-- Composition is almost always necessary when designing complex systems
+- Some kind of composition is almost always necessary when designing complex systems
 - Explicit composition can be a useful principle in order to achieve a simple, modular and clear design
-- Scala favours explicit composition (ususally through higher order combinators / DSLs) in contrast to many languages that favour a more implicit ad-hoc approach to composition.
+- Scala favours explicit composition (ususally through higher order combinators / DSLs) in contrast to many languages that favour a more implicit ad-hoc approach to composition
 
-** Applicative style
+* Composition in the small
+
+** Contextual abstractions
+- Notion of composing operations within an specific context
+- Unified API completely agnostic about the context \\
+   => Programming to an Interface, not an implementation
+- The decision which context the operations will be ran on, can sometimes be taken by the caller for context polymorphic functions \\
+   => Inversion of Control
+
+*** Applicative style
 
 Used for sequencing independent operations
 
 Without a context
 #+BEGIN_SRC scala
-def createUser (userId: String): Unit =
-  logInfo ("Processing user: " + userId) ;
+def createUser
+  (userId: String): Unit =
+
+  log.info ("Processing user: " + userId) ;
     persistUserInDB  userId ;
     sendNewUserEvent userId
 #+END_SRC
 
-Within an explicit context
+Within a context
 #+BEGIN_SRC scala
-def createUser (userId: String): IO[Unit] =
-  logInfo ("Processing user: " + userId) *>
+def createUser [F[_]: Applicative]
+  (userId: String): F[Unit] =
+
+  log.info ("Processing user: " + userId) *>
     persistUserInDB  userId *>
     sendNewUserEvent userId
 #+END_SRC
 
-** Monadic style
+*** Monadic style
 
 Used for sequencing dependent operations
 
 Without a context
 #+BEGIN_SRC scala
-def formatInPlace (inputPath: String, outputPath: String): Unit
+def formatFile
+  (inputPath: String, outputPath: String): Unit
 
   readFile(inputPath)
-    .pipe(format)
+    .pipe(callFormatProcess)
     .pipe(writeFile(outputPath))
 #+END_SRC
 
-Within an explicit context
+Within a context
 #+BEGIN_SRC scala
-def formatInPlace (inputPath: String, outputPath: String): IO[Unit]
+def formatFile [F[_]: Monad]
+  (inputPath: String, outputPath: String): F[Unit]
+
   readFile(inputPath)
-    .flatMap(format)
-    .flatMap(writeFile)
+    .flatMap(callFormatProcess)
+    .flatMap(writeFile(outputPath))
 #+END_SRC
 
 
-** Arrow style
+*** Arrow style
 
-Used for sequencing dependent operations
- (via composition)
+Used for sequencing dependent operations \\
+ (via function composition)
 
 Without a context
 #+BEGIN_SRC scala
-def formatInPlace (outputPath: String): String => Unit
+def formatFile
+  (outputPath: String): Function1[String, Unit]
+
   readFile
-    .andThen(format)
+    .andThen(callFormatProcess)
     .andThen(writeFile(outputPath))
 #+END_SRC
 
-Within an explicit context
+Within a context
 #+BEGIN_SRC scala
-def formatInPlace (outputPath: String): String => IO[Unit]
+def formatFile [F[_, _]: Arrow]
+  (outputPath: String): F[String, Unit]
+
   readFile
-    >>> format
+    >>> callFormatProcess
     >>> writeFile(outputPath)
 #+END_SRC
+
+
+* Composition in the large
+
+** Dependency Injection
+- Notion of giving access to necessary operations / resources provided in an environment generated in the application entry point
+
+- This environment of dependencies can be switched freely, for example for tests or for staging / prod configurations
