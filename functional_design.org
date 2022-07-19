@@ -6,16 +6,22 @@
 #+title: Functional Design in Scala
 
 * Explicit composition
+
 - Some kind of composition is almost always necessary when designing complex systems
+
 - Explicit composition can be a useful principle in order to achieve a simple, modular and clear design
+
 - Scala favours explicit composition (ususally through higher order combinators / DSLs) in contrast to many languages that favour a more implicit ad-hoc approach to composition
 
 * Composition in the small
 
 ** Contextual abstractions
+
 - Notion of composing operations within an specific context
+
 - Unified API completely agnostic about the context \\
    => Programming to an Interface, not an implementation
+
 - The decision which context the operations will be ran on, can sometimes be taken by the caller for context polymorphic functions \\
    => Inversion of Control
 
@@ -29,8 +35,8 @@ def createUser
   (userId: String): Unit =
 
   log.info ("Processing user: " + userId) ;
-    persistUserInDB  userId ;
-    sendNewUserEvent userId
+    persistUserInDB  (userId) ;
+    sendNewUserEvent (userId)
 #+END_SRC
 
 Within a context
@@ -39,8 +45,8 @@ def createUser [F[_]: Applicative]
   (userId: String): F[Unit] =
 
   log.info ("Processing user: " + userId) *>
-    persistUserInDB  userId *>
-    sendNewUserEvent userId
+    persistUserInDB  (userId) *>
+    sendNewUserEvent (userId)
 #+END_SRC
 
 *** Monadic style
@@ -97,6 +103,40 @@ def formatFile [F[_, _]: Arrow]
 * Composition in the large
 
 ** Dependency Injection
-- Notion of giving access to necessary operations / resources provided in an environment generated in the application entry point
 
-- This environment of dependencies can be switched freely, for example for tests or for staging / prod configurations
+- Notion of giving access to necessary operations / resources provided in an environment generated in the application entry point and cascaded down to each of the components in the application
+
+- This environment of dependencies can be switched freely, for example for   mocking in tests or for staging / prod configurations
+
+- Favours thinking the architecture of an application in terms of a tree of components that just have access to a limited set of capabilities and resources
+
+*** Tagless Final
+
+#+BEGIN_SRC scala
+trait DBOps [F[_]]:
+    def fetchAllDocuments: DbConnection ?=> F[Document]
+
+trait LoggerOps [F[_]]:
+    def log: Logger ?=> String => F[Unit]
+
+object StagingLogger extends LoggerOps[IO]:
+    def log = (logger: Logger) ?=> x => IO.delay(logger.log(x))
+
+object ProdLogger extends LoggerOps[Id]:
+    def log = (logger: Logger) ?=> x => ()
+
+object TestLogger extends LoggerOps[IO]:
+    val loggerQueue: Queue[IO, String]
+    def log = (logger: Logger) ?=> x => loggerQueue.offer(x)
+
+
+object DocumentService:
+    def listDocuments [F[_]: LoggerOps : DBOps : Applicative]
+        : F[Document] =
+      LoggerOps[F].log("Fetching documents ...") *>
+      DBOps[F].fetchAllDocuments
+#+END_SRC
+
+*** Free Monads
+
+*** ReaderT pattern
