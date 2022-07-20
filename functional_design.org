@@ -11,7 +11,7 @@
 
 - Explicit composition can be a useful principle in order to achieve a simple, modular and clear design
 
-- Scala favours explicit composition (ususally through higher order combinators / DSLs) in contrast to many languages that favour a more implicit ad-hoc approach to composition
+- Scala favours explicit composition (usually through higher order combinators) in contrast to many other languages that incentivize a more implicit approach to composition of operations
 
 * Composition in the small
 
@@ -104,11 +104,11 @@ def formatFile [F[_, _]: Arrow]
 
 ** Dependency Injection
 
-- Notion of giving access to necessary operations / resources provided in an environment generated in the application entry point and cascaded down to each of the components in the application
+- Notion of giving access to necessary capabilities / resources provided in an environment generated in the application entry point and cascaded down to each of the components in the application
 
 - This environment of dependencies can be switched freely, for example for   mocking in tests or for staging / prod configurations
 
-- Favours thinking the architecture of an application in terms of a tree of components that just have access to a limited set of capabilities and resources
+- Incentivizes thinking about the architecture of an application in terms of a hierarchical tree of components that just have access to a particular scope given by a limited set of capabilities and resources
 
 *** Tagless Final
 
@@ -131,12 +131,37 @@ object TestLogger extends LoggerOps[IO]:
 
 
 object DocumentService:
-    def listDocuments [F[_]: LoggerOps : DBOps : Applicative]
-        : F[Document] =
+    def listDocuments [F[_]: DBOps : LoggerOps : Applicative]
+        (using DbConnection, Logger): F[Document] =
       LoggerOps[F].log("Fetching documents ...") *>
       DBOps[F].fetchAllDocuments
 #+END_SRC
 
-*** Free Monads
-
 *** ReaderT pattern
+
+
+#+BEGIN_SRC scala
+trait DBOps [F[_]]:
+    def fetchAllDocuments: DbConnection ?=> F[Document]
+
+case class AppEnv(config: Config,
+                  db: DBOps,
+                  logger: LoggerOps,
+                  kafka: KafkaOps,
+                  httpClient: HttpClient)
+
+type AppM [A] = ReaderT [IO, AppEnv, A]
+
+trait HasDBOps[F[_]]:
+    def get [A] (x: F[A]): DbConnection ?=> F[Document]
+
+object AppDBOps extends HasDBOps[AppM]:
+    def get = (conn: DBConnection) ?=> liftIO(ask.map(_.db))
+
+
+object DocumentService:
+    def listDocuments [F[_]: HasDBOps : HasLoggerOps : Applicative]
+        (using DbConnection, Logger): F[Document] =
+      HasLoggerOps[F].get.log("Fetching documents ...") *>
+      HasDBOps[F].get.fetchAllDocuments
+#+END_SRC
