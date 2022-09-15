@@ -2,28 +2,32 @@
 #+REVEAL_INIT_OPTIONS: transition: 'cube'
 #+REVEAL_THEME: moon
 #+EXPORT_AUTHOR: Alberto Perez Lopez
+#+OPTIONS: toc:nil
+
 
 #+title: Functional Design in Scala
 
 * Explicit composition
 
-- Some kind of composition is almost always necessary when designing complex systems
+- Some kind of composition is almost always necessary when designing complex systems.
 
-- Explicit composition can be a useful principle in order to achieve a simple, modular and clear design
+- Explicit composition can be a means to achieve a simple, modular and clear design.
 
-- Scala favours explicit composition (usually through higher order combinators) in contrast to many other languages that incentivize a more implicit approach to composition of operations
+- Scala favours explicit composition of operations (i.e: higher order combinators) in contrast to other languages that go for a more implicit approach.
+
 
 * Composition in the small
 
 ** Contextual abstractions
 
-- Notion of composing operations within an specific context
+- Notion of composing operations within an specific context.
 
 - Unified API completely agnostic about the context \\
-   => Programming to an Interface, not an implementation
+   => Programming to an Interface, not an implementation.
 
-- The decision which context the operations will be ran on, can sometimes be taken by the caller for context polymorphic functions \\
-   => Inversion of Control
+- The decision on which context the operations will be ran on can be taken by the caller \\
+   => Inversion of Control.
+
 
 *** Applicative style
 
@@ -36,7 +40,7 @@ def createUser
 
   log.info ("Processing user: " + userId) ;
     persistUserInDB  (userId) ;
-    sendNewUserEvent (userId)
+    dispatchNewUserEvent (userId)
 #+END_SRC
 
 Within a context
@@ -46,8 +50,9 @@ def createUser [F[_]: Applicative]
 
   log.info ("Processing user: " + userId) *>
     persistUserInDB  (userId) *>
-    sendNewUserEvent (userId)
+    dispatchNewUserEvent (userId)
 #+END_SRC
+
 
 *** Monadic style
 
@@ -77,7 +82,7 @@ def formatFile [F[_]: Monad]
 *** Arrow style
 
 Used for sequencing dependent operations \\
- (via function composition)
+ (via functional composition)
 
 Without a context
 #+BEGIN_SRC scala
@@ -95,20 +100,42 @@ def formatFile [F[_, _]: Arrow]
   (outputPath: String): F[String, Unit]
 
   readFile
-    >>> callFormatProcess
-    >>> writeFile(outputPath)
+    .compose(callFormatProcess)
+    .compose(writeFile(outputPath))
 #+END_SRC
+
+
+*** Applicative vs Monadic style
+
+- Applicative provides the least power capability necessary to combine contextful operations.
+
+- A monadic API can be more expressive, but it also constraints the instances that can be defined.
+
+- Applicative independent operations can in some ocasions be ran in parallel / concurrently.
+
+#+begin_src scala
+
+    case class UserWithProducts (user: User, products: Set[Product])
+
+    def getUser[F[_]: Async] (userId: UserId): F[User]
+    def getProducts[F[_]: Async] (userId: UserId): F[Set[Product]]
+
+    def getUserInfo [F[_]: Async] (userId: UserId): F[UserWithProducts] =
+      (getUser(userId), getProducts(userId)).parMapN(UserWithProducts)
+
+#+end_src
 
 
 * Composition in the large
 
 ** Dependency Injection
 
-- Notion of giving access to necessary capabilities / resources provided in an environment generated in the application entry point and cascaded down to each of the components in the application
+- Notion of giving access to necessary capabilities provided in an environment and cascaded down to each of the components.
 
-- This environment of dependencies can be switched freely, for example for   mocking in tests or for staging / prod configurations
+- This environment of dependencies can be switched freely (mocking, staging/prod configs).
 
-- Incentivizes thinking about the architecture of an application in terms of a hierarchical tree of components that just have access to a particular scope given by a limited set of capabilities and resources
+- Promotes thinking about an application in terms of a hierarchical tree of components that just have access to a limited set of capabilities and resources.
+
 
 *** Tagless Final
 
@@ -137,8 +164,8 @@ object DocumentService:
       DBOps[F].fetchAllDocuments
 #+END_SRC
 
-*** ReaderT pattern
 
+*** ReaderT pattern
 
 #+BEGIN_SRC scala
 trait DBOps [F[_]]:
@@ -153,15 +180,29 @@ case class AppEnv(config: Config,
 type AppM [A] = ReaderT [IO, AppEnv, A]
 
 trait HasDBOps[F[_]]:
-    def get [A] (x: F[A]): DbConnection ?=> F[Document]
+    def apply(): F[DbOps]
 
 object AppDBOps extends HasDBOps[AppM]:
-    def get = (conn: DBConnection) ?=> liftIO(ask.map(_.db))
+    def apply() = ask.map(_.db)
 
 
 object DocumentService:
     def listDocuments [F[_]: HasDBOps : HasLoggerOps : Applicative]
         (using DbConnection, Logger): F[Document] =
-      HasLoggerOps[F].get.log("Fetching documents ...") *>
-      HasDBOps[F].get.fetchAllDocuments
+      HasLoggerOps[F].map(_.log("Fetching documents ...")) *>
+      HasDBOps[F].map(_.fetchAllDocuments)
 #+END_SRC
+
+*** Tagless Final vs ReaderT pattern
+
+- In Tagless Final, all capabilities are injected as typeclass instances for the effect type.
+
+- In the ReaderT pattern, all capabilities are injected by the environment provided and can be overriden at compile time by the HasX typeclasses or at runtime by modifying the environment (local fn).
+
+* Conclusions
+
+ - Composition in the small techniques aim is to build business processes in terms of simple operations via explicit sequencing of these operations.
+
+ - Composition in the large techniques aim is to build applications in terms of components / resources via explicit dependency graphs.
+
+ - Leveraging both strategies when designing an application can guarantee modularity and testability.
