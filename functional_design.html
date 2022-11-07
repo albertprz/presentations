@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Functional Design in Scala</title>
+<meta name="author" content="Alberto"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.css"/>
+
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/theme/moon.css" id="theme"/>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide">
+<h1 class="title">Functional Design in Scala</h1>
+</section>
+
+<section>
+<section id="slide-1">
+<h2 id="1"><span class="section-number-2">1.</span> Explicit composition</h2>
+<ul>
+<li>Some kind of composition is almost always necessary when designing complex systems.</li>
+
+<li>Explicit composition can be a means to achieve a simple, modular and clear design.</li>
+
+<li>Scala favours explicit composition of operations (i.e: higher order combinators) in contrast to other languages that go for a more implicit approach.</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-2">
+<h2 id="2"><span class="section-number-2">2.</span> Composition in the small</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+</section>
+<section id="slide-2-1">
+<h3 id="2-1"><span class="section-number-3">2.1.</span> Contextual abstractions</h3>
+<ul>
+<li>Notion of composing operations within an specific context.</li>
+
+<li>Unified API completely agnostic about the context <br />
+=&gt; Programming to an Interface, not an implementation.</li>
+
+<li>The decision on which context the operations will be ran on can be taken by the caller <br />
+=&gt; Inversion of Control.</li>
+
+</ul>
+
+
+</section>
+<section id="slide-2-1-1">
+<h4 id="2-1-1"><span class="section-number-4">2.1.1.</span> Applicative style</h4>
+<p>
+Used for sequencing independent operations
+</p>
+
+<p>
+Without a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">createUser</span>
+  (userId<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Unit</span> <span style="color: #51afef;">=</span>
+
+  log.info (<span style="color: #98be65;">"Processing user: "</span> + userId) ;
+    persistUserInDB  (userId) ;
+    dispatchNewUserEvent (userId)
+</pre>
+</div>
+
+<p>
+Within a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">createUser</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Applicative</span>]
+  (userId<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">Unit</span>] <span style="color: #51afef;">=</span>
+
+  log.info (<span style="color: #98be65;">"Processing user: "</span> + userId) *&gt;
+    persistUserInDB  (userId) *&gt;
+    dispatchNewUserEvent (userId)
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-1-2">
+<h4 id="2-1-2"><span class="section-number-4">2.1.2.</span> Monadic style</h4>
+<p>
+Used for sequencing dependent operations
+</p>
+
+<p>
+Without a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">formatFile</span>
+  (inputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>, outputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Unit</span>
+
+  readFile(inputPath)
+    .pipe(callFormatProcess)
+    .pipe(writeFile(outputPath))
+</pre>
+</div>
+
+<p>
+Within a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">formatFile</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Monad</span>]
+  (inputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>, outputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">Unit</span>]
+
+  readFile(inputPath)
+    .flatMap(callFormatProcess)
+    .flatMap(writeFile(outputPath))
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-1-3">
+<h4 id="2-1-3"><span class="section-number-4">2.1.3.</span> Arrow style</h4>
+<p>
+Used for sequencing dependent operations <br />
+ (via functional composition)
+</p>
+
+<p>
+Without a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">formatFile</span>
+  (outputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Function1</span>[<span style="color: #a9a1e1;">String</span>, <span style="color: #a9a1e1;">Unit</span>]
+
+  readFile
+    .andThen(callFormatProcess)
+    .andThen(writeFile(outputPath))
+</pre>
+</div>
+
+<p>
+Within a context
+</p>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">def</span> <span style="color: #c678dd;">formatFile</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>, <span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Arrow</span>]
+  (outputPath<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">String</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">String</span>, <span style="color: #a9a1e1;">Unit</span>]
+
+  readFile
+    .compose(callFormatProcess)
+    .compose(writeFile(outputPath))
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-1-4">
+<h4 id="2-1-4"><span class="section-number-4">2.1.4.</span> Applicative vs Monadic style</h4>
+<ul>
+<li>Applicative provides the least power capability necessary to combine contextful operations.</li>
+
+<li>A monadic API can be more expressive, but it also constraints the instances that can be defined.</li>
+
+<li>Applicative independent operations can in some ocasions be ran in parallel / concurrently.</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre class="src src-scala">
+    <span style="color: #51afef;">case</span> <span style="color: #51afef;">class</span> <span style="color: #ECBE7B;">UserWithProducts</span> (user<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">User</span>, products<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Set</span>[<span style="color: #a9a1e1;">Product</span>])
+
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">getUser</span>[<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Async</span>] (userId<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">UserId</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">User</span>]
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">getProducts</span>[<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Async</span>] (userId<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">UserId</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">Set</span>[<span style="color: #a9a1e1;">Product</span>]]
+
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">getUserInfo</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Async</span>] (userId<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">UserId</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">UserWithProducts</span>] <span style="color: #51afef;">=</span>
+      (getUser(userId), getProducts(userId)).parMapN(<span style="color: #a9a1e1;">UserWithProducts</span>)
+
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-3">
+<h2 id="3"><span class="section-number-2">3.</span> Composition in the large</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+</section>
+<section id="slide-3-1">
+<h3 id="3-1"><span class="section-number-3">3.1.</span> Dependency Injection</h3>
+<ul>
+<li>Notion of giving access to necessary capabilities provided in an environment and cascaded down to each of the components.</li>
+
+<li>This environment of dependencies can be switched freely (mocking, staging/prod configs).</li>
+
+<li>Promotes thinking about an application in terms of a hierarchical tree of components that just have access to a limited set of capabilities and resources.</li>
+
+</ul>
+
+
+</section>
+<section id="slide-3-1-1">
+<h4 id="3-1-1"><span class="section-number-4">3.1.1.</span> Tagless Final</h4>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">trait</span> <span style="color: #ECBE7B;">DBOps</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">fetchAllDocuments</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">DbConnection</span> ?=&gt; <span style="color: #a9a1e1;">F</span>[<span style="color: #a9a1e1;">Document</span>]
+
+<span style="color: #51afef;">trait</span> <span style="color: #ECBE7B;">LoggerOps</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">log</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Logger</span> ?=&gt; <span style="color: #a9a1e1;">String</span> <span style="color: #51afef;">=&gt;</span> <span style="color: #a9a1e1;">F</span>[<span style="color: #a9a1e1;">Unit</span>]
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">StagingLogger</span> <span style="color: #51afef;">extends</span> <span style="color: #ECBE7B;">LoggerOps</span>[<span style="color: #a9a1e1;">IO</span>]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">log</span> <span style="color: #51afef;">=</span> (logger<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Logger</span>) ?=&gt; x <span style="color: #51afef;">=&gt;</span> <span style="color: #a9a1e1;">IO</span>.delay(logger.log(x))
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">ProdLogger</span> <span style="color: #51afef;">extends</span> <span style="color: #ECBE7B;">LoggerOps</span>[<span style="color: #a9a1e1;">Id</span>]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">log</span> <span style="color: #51afef;">=</span> (logger<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Logger</span>) ?=&gt; x <span style="color: #51afef;">=&gt;</span> ()
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">TestLogger</span> <span style="color: #51afef;">extends</span> <span style="color: #ECBE7B;">LoggerOps</span>[<span style="color: #a9a1e1;">IO</span>]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">val</span> <span style="color: #dcaeea;">loggerQueue</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Queue</span>[<span style="color: #a9a1e1;">IO</span>, <span style="color: #a9a1e1;">String</span>]
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">log</span> <span style="color: #51afef;">=</span> (logger<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Logger</span>) ?=&gt; x <span style="color: #51afef;">=&gt;</span> loggerQueue.offer(x)
+
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">DocumentService</span><span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">listDocuments</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">DBOps</span> <span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">LoggerOps</span> <span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Applicative</span>]
+        (<span style="color: #51afef;">using</span> <span style="color: #a9a1e1;">DbConnection</span>, <span style="color: #a9a1e1;">Logger</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">Document</span>] <span style="color: #51afef;">=</span>
+      <span style="color: #a9a1e1;">LoggerOps</span>[<span style="color: #a9a1e1;">F</span>].log(<span style="color: #98be65;">"Fetching documents ..."</span>) *&gt;
+      <span style="color: #a9a1e1;">DBOps</span>[<span style="color: #a9a1e1;">F</span>].fetchAllDocuments
+</pre>
+</div>
+
+
+</section>
+<section id="slide-3-1-2">
+<h4 id="3-1-2"><span class="section-number-4">3.1.2.</span> ReaderT pattern</h4>
+<div class="org-src-container">
+
+<pre class="src src-scala"><span style="color: #51afef;">trait</span> <span style="color: #ECBE7B;">DBOps</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">fetchAllDocuments</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">DbConnection</span> ?=&gt; <span style="color: #a9a1e1;">F</span>[<span style="color: #a9a1e1;">Document</span>]
+
+<span style="color: #51afef;">case</span> <span style="color: #51afef;">class</span> <span style="color: #ECBE7B;">AppEnv</span>(config<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Config</span>,
+                  db<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">DBOps</span>,
+                  logger<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">LoggerOps</span>,
+                  kafka<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">KafkaOps</span>,
+                  httpClient<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">HttpClient</span>)
+
+<span style="color: #51afef;">type</span> <span style="color: #a9a1e1;">AppM</span> [<span style="color: #a9a1e1;">A</span>] <span style="color: #51afef;">=</span> <span style="color: #a9a1e1;">ReaderT</span> [<span style="color: #a9a1e1;">IO</span>, <span style="color: #a9a1e1;">AppEnv</span>, <span style="color: #a9a1e1;">A</span>]
+
+<span style="color: #51afef;">trait</span> <span style="color: #ECBE7B;">HasDBOps</span>[<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">apply</span>()<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">DbOps</span>]
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">AppDBOps</span> <span style="color: #51afef;">extends</span> <span style="color: #ECBE7B;">HasDBOps</span>[<span style="color: #a9a1e1;">AppM</span>]<span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">apply</span>() <span style="color: #51afef;">=</span> ask.map(<span style="color: #51afef;">_</span>.db)
+
+
+<span style="color: #51afef;">object</span> <span style="color: #a9a1e1;">DocumentService</span><span style="color: #51afef;">:</span>
+    <span style="color: #51afef;">def</span> <span style="color: #c678dd;">listDocuments</span> [<span style="color: #a9a1e1;">F</span>[<span style="color: #51afef;">_</span>]<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">HasDBOps</span> <span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">HasLoggerOps</span> <span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Applicative</span>]
+        (<span style="color: #51afef;">using</span> <span style="color: #a9a1e1;">DbConnection</span>, <span style="color: #a9a1e1;">Logger</span>)<span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">F</span>[<span style="color: #a9a1e1;">Document</span>] <span style="color: #51afef;">=</span>
+      <span style="color: #a9a1e1;">HasLoggerOps</span>[<span style="color: #a9a1e1;">F</span>].map(<span style="color: #51afef;">_</span>.log(<span style="color: #98be65;">"Fetching documents ..."</span>)) *&gt;
+      <span style="color: #a9a1e1;">HasDBOps</span>[<span style="color: #a9a1e1;">F</span>].map(<span style="color: #51afef;">_</span>.fetchAllDocuments)
+</pre>
+</div>
+
+</section>
+<section id="slide-3-1-3">
+<h4 id="3-1-3"><span class="section-number-4">3.1.3.</span> Tagless Final vs ReaderT pattern</h4>
+<ul>
+<li>In Tagless Final, all capabilities are injected as typeclass instances for the effect type.</li>
+
+<li>In the ReaderT pattern, all capabilities are injected by the environment provided and can be overriden at compile time by the HasX typeclasses or at runtime by modifying the environment (local fn).</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-4">
+<h2 id="4"><span class="section-number-2">4.</span> Conclusions</h2>
+<ul>
+<li>Composition in the small techniques aim is to build business processes in terms of simple operations via explicit sequencing of these operations.</li>
+
+<li>Composition in the large techniques aim is to build applications in terms of components / resources via explicit dependency graphs.</li>
+
+<li>Leveraging both strategies when designing an application can guarantee modularity and testability.</li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/markdown/markdown.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/notes/notes.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/search/search.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/zoom/zoom.js"></script>
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+hashOneBasedIndex: false,
+pdfSeparateFragments: true,
+overview: true,
+
+transition: 'convex',
+transitionSpeed: 'default',
+
+// Plugins with reveal.js 4.x
+plugins: [ RevealMarkdown, RevealNotes, RevealSearch, RevealZoom ],
+
+// Optional libraries used to extend reveal.js
+dependencies: [
+]
+
+});
+</script>
+</body>
+</html>
