@@ -14,7 +14,7 @@
   - Actual interpretation of the program is delayed. This allows for easy introspection & analysis of the program before execution.
 
 
-* Case of use: Simple Bank App - Algebra & Interpreter
+* Case : Simple Bank Client App - Algebra & Interpreter
 
 ** Presentation of the problem
 
@@ -44,18 +44,27 @@ newtype AccountId = AccountId String
 
 ** Algebra definition
 
+Haskell:
 #+BEGIN_SRC haskell
-data BankAlgebraF next
+data BankAlgebra next
   = PerformTransaction AccountId Amount next
   | TopUpCard Amount next
   | CheckBalance (Amount -> next)
   deriving Functor
+
+type BankProgram = Free BankAlgebra
 #+END_SRC
 
+Scala 3:
+#+BEGIN_SRC scala
+enum BankAlgebra [NEXT] derives Functor:
+  case PerformTransaction (x: AccountId) (y: Amount) (z: NEXT)
+  case TopUpCard (x: Amount) (y: NEXT)
+  case CheckBalance (x: Amount => NEXT)
 
-#+BEGIN_SRC haskell
-type BankAlgebra = Free BankAlgebraF
+type BankProgram = Free[BankAlgebra]
 #+END_SRC
+
 
 
 ** Primitive combinators
@@ -63,13 +72,13 @@ type BankAlgebra = Free BankAlgebraF
 #+BEGIN_SRC haskell
 import Control.Monad.Free (liftF)
 
-performTransaction :: AccountId -> Amount -> BankAlgebra ()
+performTransaction :: AccountId -> Amount -> BankProgram ()
 performTransaction a b = liftF (PerformTransaction a b ())
 
-topUpCard :: Amount -> BankAlgebra ()
+topUpCard :: Amount -> BankProgram ()
 topUpCard a = liftF (TopUpCard a ())
 
-checkBalance :: BankAlgebra Amount
+checkBalance :: BankProgram Amount
 checkBalance = liftF (CheckBalance id)
 #+END_SRC
 
@@ -77,7 +86,7 @@ checkBalance = liftF (CheckBalance id)
 ** Combined operations
 
 #+BEGIN_SRC haskell
-performTransactionSafe :: AccountId -> Amount -> BankAlgebra Bool
+performTransactionSafe :: AccountId -> Amount -> BankProgram Bool
 performTransactionSafe account amount =
   do funds <- checkBalance
      if funds >= amount
@@ -85,7 +94,7 @@ performTransactionSafe account amount =
         else pure False
 
 
-topUpCardSafe :: Amount -> BankAlgebra Bool
+topUpCardSafe :: Amount -> BankProgram Bool
 topUpCardSafe amount =
   do funds <- checkBalance
      if funds >= amount
@@ -98,19 +107,16 @@ topUpCardSafe amount =
 
 
 #+BEGIN_SRC haskell
-import Control.Monad.State (modify)
-import Data.Map (adjust)
-
-interpreter :: BankAlgebraF a -> State (Map AccountId Amount) a
+interpreter :: BankAlgebra a -> State (Map AccountId Amount) a
 interpreter x = case x of
 
       PerformTransaction account amount next ->
-        do _ <- modify (adjust (+| amount) account .
-                       adjust (-| amount) currentAcc)
+        do _ <- modify (Map.adjust (+| amount) account .
+                        Map.adjust (-| amount) currentAcc)
            pure next
 
       TopUpCard amount next ->
-        do _ <- modify (adjust (-| amount) currentAcc)
+        do _ <- modify (Map.adjust (-| amount) currentAcc)
            pure next
 
 
@@ -123,21 +129,21 @@ interpreter x = case x of
 #+END_SRC
 
 
-* Case of use: Simple Bank App - Example program
+* Case : Simple Bank Client App - Example program
 
 ** Presentation of the problem
 
 A user wants to write a simple program that will run at the start of each month and will:
 
-- perform an automatic transfer to the landlord
+- perform an automatic transfer to the landlord for the monthly rent.
 - top the current card up (if possible).
-- Additionally, it should emit a brief report of the operations.
+- Additionally, it should emit a brief report of the operations performed.
 
 
 ** Program definition
 
 #+BEGIN_SRC haskell
-program :: BankAlgebra [String]
+program :: BankProgram [String]
 program = do
   success <- performTransactionSafe (AccountId "GB67BARC20032647753595")
                                    amountDue
@@ -170,6 +176,7 @@ result = foldFree interpreter program `runState`
 #+END_SRC
 
 
+Results:
 #+BEGIN_SRC haskell
 (["Completed transaction",
   "Failed card topup. Need more funds"],

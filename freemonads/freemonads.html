@@ -33,7 +33,7 @@
 </section>
 <section>
 <section id="slide-2">
-<h2 id="2"><span class="section-number-2">2.</span> Case of use: Simple Bank App - Algebra &amp; Interpreter</h2>
+<h2 id="2"><span class="section-number-2">2.</span> Case : Simple Bank Client App - Algebra &amp; Interpreter</h2>
 <div class="outline-text-2" id="text-2">
 </div>
 </section>
@@ -76,22 +76,35 @@ Users should be able to write programs that are able to:
 </section>
 <section id="slide-2-3">
 <h3 id="2-3"><span class="section-number-3">2.3.</span> Algebra definition</h3>
+<p>
+Haskell:
+</p>
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">BankAlgebraF</span> next
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">BankAlgebra</span> next
   <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">PerformTransaction</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span> next
   <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">TopUpCard</span> <span style="color: #ECBE7B;">Amount</span> next
   <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">CheckBalance</span> (<span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> next)
   <span style="color: #51afef;">deriving</span> <span style="color: #ECBE7B;">Functor</span>
+
+<span style="color: #51afef;">type</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Free</span> <span style="color: #ECBE7B;">BankAlgebra</span>
 </pre>
 </div>
 
-
+<p>
+Scala 3:
+</p>
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #51afef;">type</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Free</span> <span style="color: #ECBE7B;">BankAlgebraF</span>
+<pre class="src src-scala"><span style="color: #51afef;">enum</span> <span style="color: #a9a1e1;">BankAlgebra</span> [<span style="color: #a9a1e1;">NEXT</span>] <span style="color: #51afef;">derives</span> <span style="color: #a9a1e1;">Functor</span><span style="color: #51afef;">:</span>
+  <span style="color: #51afef;">case</span> <span style="color: #a9a1e1;">PerformTransaction</span> (<span style="color: #dcaeea;">x</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">AccountId</span>) (<span style="color: #dcaeea;">y</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Amount</span>) (<span style="color: #dcaeea;">z</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">NEXT</span>)
+  <span style="color: #51afef;">case</span> <span style="color: #a9a1e1;">TopUpCard</span> (<span style="color: #dcaeea;">x</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Amount</span>) (<span style="color: #dcaeea;">y</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">NEXT</span>)
+  <span style="color: #51afef;">case</span> <span style="color: #a9a1e1;">CheckBalance</span> (<span style="color: #dcaeea;">x</span><span style="color: #51afef;">:</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #51afef;">=&gt;</span> <span style="color: #a9a1e1;">NEXT</span>)
+
+<span style="color: #51afef;">type</span> <span style="color: #a9a1e1;">BankProgram</span> <span style="color: #51afef;">=</span> <span style="color: #a9a1e1;">Free</span>[<span style="color: #a9a1e1;">BankAlgebra</span>]
 </pre>
 </div>
+
 
 
 </section>
@@ -101,13 +114,13 @@ Users should be able to write programs that are able to:
 
 <pre class="src src-haskell"><span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Control.Monad.Free</span> (liftF)
 
-<span style="color: #c678dd;">performTransaction</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">()</span>
+<span style="color: #c678dd;">performTransaction</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #ECBE7B;">()</span>
 <span style="color: #c678dd;">performTransaction</span> a b <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">PerformTransaction</span> a b <span style="color: #ECBE7B;">()</span>)
 
-<span style="color: #c678dd;">topUpCard</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">()</span>
+<span style="color: #c678dd;">topUpCard</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #ECBE7B;">()</span>
 <span style="color: #c678dd;">topUpCard</span> a <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">TopUpCard</span> a <span style="color: #ECBE7B;">()</span>)
 
-<span style="color: #c678dd;">checkBalance</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Amount</span>
+<span style="color: #c678dd;">checkBalance</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #ECBE7B;">Amount</span>
 <span style="color: #c678dd;">checkBalance</span> <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">CheckBalance</span> id)
 </pre>
 </div>
@@ -118,7 +131,7 @@ Users should be able to write programs that are able to:
 <h3 id="2-5"><span class="section-number-3">2.5.</span> Combined operations</h3>
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #c678dd;">performTransactionSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Bool</span>
+<pre class="src src-haskell"><span style="color: #c678dd;">performTransactionSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #ECBE7B;">Bool</span>
 <span style="color: #c678dd;">performTransactionSafe</span> account amount <span style="color: #dcaeea;">=</span>
   <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
      <span style="color: #51afef;">if</span> funds <span style="color: #dcaeea;">&gt;=</span> amount
@@ -126,7 +139,7 @@ Users should be able to write programs that are able to:
         <span style="color: #51afef;">else</span> pure <span style="color: #ECBE7B;">False</span>
 
 
-<span style="color: #c678dd;">topUpCardSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Bool</span>
+<span style="color: #c678dd;">topUpCardSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankProgram</span> <span style="color: #ECBE7B;">Bool</span>
 <span style="color: #c678dd;">topUpCardSafe</span> amount <span style="color: #dcaeea;">=</span>
   <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
      <span style="color: #51afef;">if</span> funds <span style="color: #dcaeea;">&gt;=</span> amount
@@ -141,19 +154,16 @@ Users should be able to write programs that are able to:
 <h3 id="2-6"><span class="section-number-3">2.6.</span> Interpreter</h3>
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Control.Monad.State</span> (modify)
-<span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Data.Map</span> (adjust)
-
-<span style="color: #c678dd;">interpreter</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebraF</span> a <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">State</span> (<span style="color: #ECBE7B;">Map</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span>) a
+<pre class="src src-haskell"><span style="color: #c678dd;">interpreter</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> a <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">State</span> (<span style="color: #ECBE7B;">Map</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span>) a
 <span style="color: #c678dd;">interpreter</span> x <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">case</span> x <span style="color: #51afef;">of</span>
 
       <span style="color: #ECBE7B;">PerformTransaction</span> account amount next <span style="color: #dcaeea;">-&gt;</span>
-        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (adjust (<span style="color: #dcaeea;">+|</span> amount) account <span style="color: #dcaeea;">.</span>
-                       adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (Map.adjust (<span style="color: #dcaeea;">+|</span> amount) account <span style="color: #dcaeea;">.</span>
+                        Map.adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
            pure next
 
       <span style="color: #ECBE7B;">TopUpCard</span> amount next <span style="color: #dcaeea;">-&gt;</span>
-        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (Map.adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
            pure next
 
 
@@ -171,7 +181,7 @@ Users should be able to write programs that are able to:
 </section>
 <section>
 <section id="slide-3">
-<h2 id="3"><span class="section-number-2">3.</span> Case of use: Simple Bank App - Example program</h2>
+<h2 id="3"><span class="section-number-2">3.</span> Case : Simple Bank Client App - Example program</h2>
 <div class="outline-text-2" id="text-3">
 </div>
 </section>
@@ -182,9 +192,9 @@ A user wants to write a simple program that will run at the start of each month 
 </p>
 
 <ul>
-<li>perform an automatic transfer to the landlord</li>
+<li>perform an automatic transfer to the landlord for the monthly rent.</li>
 <li>top the current card up (if possible).</li>
-<li>Additionally, it should emit a brief report of the operations.</li>
+<li>Additionally, it should emit a brief report of the operations performed.</li>
 
 </ul>
 
@@ -194,7 +204,7 @@ A user wants to write a simple program that will run at the start of each month 
 <h3 id="3-2"><span class="section-number-3">3.2.</span> Program definition</h3>
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> [<span style="color: #ECBE7B;">String</span>]
+<pre class="src src-haskell"><span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankProgram</span> [<span style="color: #ECBE7B;">String</span>]
 <span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">do</span>
   success <span style="color: #dcaeea;">&lt;-</span> performTransactionSafe (<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"GB67BARC20032647753595"</span>)
                                    amountDue
@@ -231,6 +241,9 @@ A user wants to write a simple program that will run at the start of each month 
 </div>
 
 
+<p>
+Results:
+</p>
 <div class="org-src-container">
 
 <pre class="src src-haskell">([<span style="color: #98be65;">"Completed transaction"</span>,
