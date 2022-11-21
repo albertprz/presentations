@@ -1,0 +1,189 @@
+#+REVEAL_HLEVEL: 1
+#+REVEAL_INIT_OPTIONS: transition: 'cube'
+#+REVEAL_THEME: moon
+#+EXPORT_AUTHOR: Alberto Perez Lopez
+#+OPTIONS: toc:nil
+
+
+#+title: Free Monads
+
+* Intro
+
+  - Technique that is focused construction of programs via the sequencing of reified computations.
+
+  - Actual interpretation of the program is delayed. This allows for easy introspection & analysis of the program before execution.
+
+
+* Case of use: Simple Bank App - Algebra & Interpreter
+
+** Presentation of the problem
+
+Users should be able to write programs that are able to:
+  - Issue a transfer of a certain amount of money to a different account
+  - Top a card up from the funds in the user account
+  - Consult the current balance in the user account
+
+** Domain Models
+
+#+BEGIN_SRC haskell
+newtype Amount = Amount Double
+  deriving (Eq, Ord, Show)
+
+newtype AccountId = AccountId String
+  deriving (Eq, Ord, Show)
+#+END_SRC
+
+#+BEGIN_SRC haskell
+(-|) :: Amount -> Amount -> Amount
+(-|) (Amount am1) (Amount am2) = Amount (am1 - am2)
+
+(+|) :: Amount -> Amount -> Amount
+(+|) (Amount am1) (Amount am2) = Amount (am1 + am2)
+#+END_SRC
+
+
+** Algebra definition
+
+#+BEGIN_SRC haskell
+data BankAlgebraF next
+  = PerformTransaction AccountId Amount next
+  | TopUpCard Amount next
+  | CheckBalance (Amount -> next)
+  deriving Functor
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+type BankAlgebra = Free BankAlgebraF
+#+END_SRC
+
+
+** Primitive combinators
+
+#+BEGIN_SRC haskell
+import Control.Monad.Free (liftF)
+
+performTransaction :: AccountId -> Amount -> BankAlgebra ()
+performTransaction a b = liftF (PerformTransaction a b ())
+
+topUpCard :: Amount -> BankAlgebra ()
+topUpCard a = liftF (TopUpCard a ())
+
+checkBalance :: BankAlgebra Amount
+checkBalance = liftF (CheckBalance id)
+#+END_SRC
+
+
+** Combined operations
+
+#+BEGIN_SRC haskell
+performTransactionSafe :: AccountId -> Amount -> BankAlgebra Bool
+performTransactionSafe account amount =
+  do funds <- checkBalance
+     if funds >= amount
+        then performTransaction account amount *> pure True
+        else pure False
+
+
+topUpCardSafe :: Amount -> BankAlgebra Bool
+topUpCardSafe amount =
+  do funds <- checkBalance
+     if funds >= amount
+        then topUpCard amount *> pure True
+        else pure False
+#+END_SRC
+
+
+** Interpreter
+
+
+#+BEGIN_SRC haskell
+import Control.Monad.State (modify)
+import Data.Map (adjust)
+
+interpreter :: BankAlgebraF a -> State (Map AccountId Amount) a
+interpreter x = case x of
+
+      PerformTransaction account amount next ->
+        do _ <- modify (adjust (+| amount) account .
+                       adjust (-| amount) currentAcc)
+           pure next
+
+      TopUpCard amount next ->
+        do _ <- modify (adjust (-| amount) currentAcc)
+           pure next
+
+
+      CheckBalance next ->
+        do funds <- fmap (fromMaybe (Amount 0) . Map.lookup currentAcc) get
+           pure (next funds)
+
+   where
+     currentAcc = AccountId "current_account"
+#+END_SRC
+
+
+* Case of use: Simple Bank App - Example program
+
+** Presentation of the problem
+
+A user wants to write a simple program that will run at the start of each month and will:
+
+- perform an automatic transfer to the landlord
+- top the current card up (if possible).
+- Additionally, it should emit a brief report of the operations.
+
+
+** Program definition
+
+#+BEGIN_SRC haskell
+program :: BankAlgebra [String]
+program = do
+  success <- performTransactionSafe (AccountId "GB67BARC20032647753595")
+                                   amountDue
+  funds <- checkBalance
+
+  success' <- if success && funds >= (amountDue +| amountTopUp)
+             then topUpCardSafe amountTopUp
+             else pure False
+
+  pure [if success
+        then "Completed transaction"
+        else "Failed transaction. Need more funds",
+        if success'
+        then "Completed card topup"
+        else "Failed card topup. Need more funds"]
+
+  where
+    amountDue   = Amount 1000
+    amountTopUp = Amount 500
+#+END_SRC
+
+
+** Program execution
+
+#+BEGIN_SRC haskell
+result :: ([String], Map AccountId Amount)
+result = foldFree interpreter program `runState`
+           Map.fromList [(AccountId "current_account", Amount 1800),
+                         (AccountId "GB67BARC20032647753595", Amount 0)]
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+(["Completed transaction",
+  "Failed card topup. Need more funds"],
+
+ {AccountId "current_account"        -> Amount 800.0,
+  AccountId "GB67BARC20032647753595" -> Amount 1000.0})
+#+END_SRC
+
+* Key Conclusions
+
+  - The exact same program can be interpreted via different interpreters that are usually plugged at the end of the world.
+
+
+  - The set of operations available is restricted by the current Free Monad (Interesting for DSLs).
+
+
+  - Particularly useful for often possibly effectful business logic that can be easily modelled as a finite state machine of a set(s) of operations

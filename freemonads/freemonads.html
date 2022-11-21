@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Free Monads</title>
+<meta name="author" content="Alberto"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.css"/>
+
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/theme/moon.css" id="theme"/>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide">
+<h1 class="title">Free Monads</h1>
+</section>
+
+<section>
+<section id="slide-1">
+<h2 id="1"><span class="section-number-2">1.</span> Intro</h2>
+<ul>
+<li>Technique that is focused construction of programs via the sequencing of reified computations.</li>
+
+<li>Actual interpretation of the program is delayed. This allows for easy introspection &amp; analysis of the program before execution.</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-2">
+<h2 id="2"><span class="section-number-2">2.</span> Case of use: Simple Bank App - Algebra &amp; Interpreter</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+</section>
+<section id="slide-2-1">
+<h3 id="2-1"><span class="section-number-3">2.1.</span> Presentation of the problem</h3>
+<p>
+Users should be able to write programs that are able to:
+</p>
+<ul>
+<li>Issue a transfer of a certain amount of money to a different account</li>
+<li>Top a card up from the funds in the user account</li>
+<li>Consult the current balance in the user account</li>
+
+</ul>
+
+</section>
+<section id="slide-2-2">
+<h3 id="2-2"><span class="section-number-3">2.2.</span> Domain Models</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">newtype</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #ECBE7B;">Double</span>
+  <span style="color: #51afef;">deriving</span> (<span style="color: #ECBE7B;">Eq</span>, <span style="color: #ECBE7B;">Ord</span>, <span style="color: #ECBE7B;">Show</span>)
+
+<span style="color: #51afef;">newtype</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">String</span>
+  <span style="color: #51afef;">deriving</span> (<span style="color: #ECBE7B;">Eq</span>, <span style="color: #ECBE7B;">Ord</span>, <span style="color: #ECBE7B;">Show</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell">(<span style="color: #c678dd;">-|</span>) <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span>
+(<span style="color: #c678dd;">-|</span>) (<span style="color: #ECBE7B;">Amount</span> am1) (<span style="color: #ECBE7B;">Amount</span> am2) <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Amount</span> (am1 <span style="color: #dcaeea;">-</span> am2)
+
+(<span style="color: #c678dd;">+|</span>) <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span>
+(<span style="color: #c678dd;">+|</span>) (<span style="color: #ECBE7B;">Amount</span> am1) (<span style="color: #ECBE7B;">Amount</span> am2) <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Amount</span> (am1 <span style="color: #dcaeea;">+</span> am2)
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-3">
+<h3 id="2-3"><span class="section-number-3">2.3.</span> Algebra definition</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">BankAlgebraF</span> next
+  <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">PerformTransaction</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span> next
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">TopUpCard</span> <span style="color: #ECBE7B;">Amount</span> next
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">CheckBalance</span> (<span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> next)
+  <span style="color: #51afef;">deriving</span> <span style="color: #ECBE7B;">Functor</span>
+</pre>
+</div>
+
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">type</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Free</span> <span style="color: #ECBE7B;">BankAlgebraF</span>
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-4">
+<h3 id="2-4"><span class="section-number-3">2.4.</span> Primitive combinators</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Control.Monad.Free</span> (liftF)
+
+<span style="color: #c678dd;">performTransaction</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">()</span>
+<span style="color: #c678dd;">performTransaction</span> a b <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">PerformTransaction</span> a b <span style="color: #ECBE7B;">()</span>)
+
+<span style="color: #c678dd;">topUpCard</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">()</span>
+<span style="color: #c678dd;">topUpCard</span> a <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">TopUpCard</span> a <span style="color: #ECBE7B;">()</span>)
+
+<span style="color: #c678dd;">checkBalance</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Amount</span>
+<span style="color: #c678dd;">checkBalance</span> <span style="color: #dcaeea;">=</span> liftF (<span style="color: #ECBE7B;">CheckBalance</span> id)
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-5">
+<h3 id="2-5"><span class="section-number-3">2.5.</span> Combined operations</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">performTransactionSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Bool</span>
+<span style="color: #c678dd;">performTransactionSafe</span> account amount <span style="color: #dcaeea;">=</span>
+  <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
+     <span style="color: #51afef;">if</span> funds <span style="color: #dcaeea;">&gt;=</span> amount
+        <span style="color: #51afef;">then</span> performTransaction account amount <span style="color: #dcaeea;">*&gt;</span> pure <span style="color: #ECBE7B;">True</span>
+        <span style="color: #51afef;">else</span> pure <span style="color: #ECBE7B;">False</span>
+
+
+<span style="color: #c678dd;">topUpCardSafe</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">BankAlgebra</span> <span style="color: #ECBE7B;">Bool</span>
+<span style="color: #c678dd;">topUpCardSafe</span> amount <span style="color: #dcaeea;">=</span>
+  <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
+     <span style="color: #51afef;">if</span> funds <span style="color: #dcaeea;">&gt;=</span> amount
+        <span style="color: #51afef;">then</span> topUpCard amount <span style="color: #dcaeea;">*&gt;</span> pure <span style="color: #ECBE7B;">True</span>
+        <span style="color: #51afef;">else</span> pure <span style="color: #ECBE7B;">False</span>
+</pre>
+</div>
+
+
+</section>
+<section id="slide-2-6">
+<h3 id="2-6"><span class="section-number-3">2.6.</span> Interpreter</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Control.Monad.State</span> (modify)
+<span style="color: #51afef;">import</span> <span style="color: #ECBE7B;">Data.Map</span> (adjust)
+
+<span style="color: #c678dd;">interpreter</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebraF</span> a <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">State</span> (<span style="color: #ECBE7B;">Map</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span>) a
+<span style="color: #c678dd;">interpreter</span> x <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">case</span> x <span style="color: #51afef;">of</span>
+
+      <span style="color: #ECBE7B;">PerformTransaction</span> account amount next <span style="color: #dcaeea;">-&gt;</span>
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (adjust (<span style="color: #dcaeea;">+|</span> amount) account <span style="color: #dcaeea;">.</span>
+                       adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
+           pure next
+
+      <span style="color: #ECBE7B;">TopUpCard</span> amount next <span style="color: #dcaeea;">-&gt;</span>
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
+           pure next
+
+
+      <span style="color: #ECBE7B;">CheckBalance</span> next <span style="color: #dcaeea;">-&gt;</span>
+        <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> fmap (fromMaybe (<span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">0</span>) <span style="color: #dcaeea;">.</span> Map.lookup currentAcc) get
+           pure (next funds)
+
+   <span style="color: #51afef;">where</span>
+     currentAcc <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"current_account"</span>
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-3">
+<h2 id="3"><span class="section-number-2">3.</span> Case of use: Simple Bank App - Example program</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+</section>
+<section id="slide-3-1">
+<h3 id="3-1"><span class="section-number-3">3.1.</span> Presentation of the problem</h3>
+<p>
+A user wants to write a simple program that will run at the start of each month and will:
+</p>
+
+<ul>
+<li>perform an automatic transfer to the landlord</li>
+<li>top the current card up (if possible).</li>
+<li>Additionally, it should emit a brief report of the operations.</li>
+
+</ul>
+
+
+</section>
+<section id="slide-3-2">
+<h3 id="3-2"><span class="section-number-3">3.2.</span> Program definition</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> [<span style="color: #ECBE7B;">String</span>]
+<span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">do</span>
+  success <span style="color: #dcaeea;">&lt;-</span> performTransactionSafe (<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"GB67BARC20032647753595"</span>)
+                                   amountDue
+  funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
+
+  success' <span style="color: #dcaeea;">&lt;-</span> <span style="color: #51afef;">if</span> success <span style="color: #dcaeea;">&amp;&amp;</span> funds <span style="color: #dcaeea;">&gt;=</span> (amountDue <span style="color: #dcaeea;">+|</span> amountTopUp)
+             <span style="color: #51afef;">then</span> topUpCardSafe amountTopUp
+             <span style="color: #51afef;">else</span> pure <span style="color: #ECBE7B;">False</span>
+
+  pure [<span style="color: #51afef;">if</span> success
+        <span style="color: #51afef;">then</span> <span style="color: #98be65;">"Completed transaction"</span>
+        <span style="color: #51afef;">else</span> <span style="color: #98be65;">"Failed transaction. Need more funds"</span>,
+        <span style="color: #51afef;">if</span> success'
+        <span style="color: #51afef;">then</span> <span style="color: #98be65;">"Completed card topup"</span>
+        <span style="color: #51afef;">else</span> <span style="color: #98be65;">"Failed card topup. Need more funds"</span>]
+
+  <span style="color: #51afef;">where</span>
+    amountDue   <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">1000</span>
+    amountTopUp <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">500</span>
+</pre>
+</div>
+
+
+</section>
+<section id="slide-3-3">
+<h3 id="3-3"><span class="section-number-3">3.3.</span> Program execution</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">result</span> <span style="color: #dcaeea;">::</span> ([<span style="color: #ECBE7B;">String</span>], <span style="color: #ECBE7B;">Map</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #ECBE7B;">Amount</span>)
+<span style="color: #c678dd;">result</span> <span style="color: #dcaeea;">=</span> foldFree interpreter program <span style="color: #dcaeea;">`runState`</span>
+           Map.fromList [(<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"current_account"</span>, <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">1800</span>),
+                         (<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"GB67BARC20032647753595"</span>, <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">0</span>)]
+</pre>
+</div>
+
+
+<div class="org-src-container">
+
+<pre class="src src-haskell">([<span style="color: #98be65;">"Completed transaction"</span>,
+  <span style="color: #98be65;">"Failed card topup. Need more funds"</span>],
+
+ {<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"current_account"</span>        <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">800.0</span>,
+  <span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"GB67BARC20032647753595"</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">1000.0</span>})
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-4">
+<h2 id="4"><span class="section-number-2">4.</span> Key Conclusions</h2>
+<ul>
+<li>The exact same program can be interpreted via different interpreters that are usually plugged at the end of the world.</li>
+
+</ul>
+
+
+<ul>
+<li>The set of operations available is restricted by the current Free Monad (Interesting for DSLs).</li>
+
+</ul>
+
+
+<ul>
+<li>Particularly useful for often possibly effectful business logic that can be easily modelled as a finite state machine of a set(s) of operations</li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/markdown/markdown.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/notes/notes.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/search/search.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/zoom/zoom.js"></script>
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+hashOneBasedIndex: false,
+pdfSeparateFragments: true,
+overview: true,
+
+transition: 'convex',
+transitionSpeed: 'default',
+
+// Plugins with reveal.js 4.x
+plugins: [ RevealMarkdown, RevealNotes, RevealSearch, RevealZoom ],
+
+// Optional libraries used to extend reveal.js
+dependencies: [
+]
+
+});
+</script>
+</body>
+</html>
