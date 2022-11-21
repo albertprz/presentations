@@ -62,6 +62,9 @@ Users should be able to write programs that are able to:
 </pre>
 </div>
 
+<p>
+Additional operations:
+</p>
 <div class="org-src-container">
 
 <pre class="src src-haskell">(<span style="color: #c678dd;">-|</span>) <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span> <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">Amount</span>
@@ -166,10 +169,35 @@ Scala 3:
         <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (Map.adjust (<span style="color: #dcaeea;">-|</span> amount) currentAcc)
            pure next
 
-
       <span style="color: #ECBE7B;">CheckBalance</span> next <span style="color: #dcaeea;">-&gt;</span>
         <span style="color: #51afef;">do</span> funds <span style="color: #dcaeea;">&lt;-</span> fmap (fromMaybe (<span style="color: #ECBE7B;">Amount</span> <span style="color: #da8548; font-weight: bold;">0</span>) <span style="color: #dcaeea;">.</span> Map.lookup currentAcc) get
            pure (next funds)
+
+   <span style="color: #51afef;">where</span>
+     currentAcc <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"current_account"</span>
+</pre>
+</div>
+
+</section>
+<section id="slide-2-7">
+<h3 id="2-7"><span class="section-number-3">2.7.</span> Audit Interpreter</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">auditInterpreter</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankAlgebra</span> a <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">State</span> <span style="color: #ECBE7B;">String</span> a
+<span style="color: #c678dd;">auditInterpreter</span> x <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">case</span> x <span style="color: #51afef;">of</span>
+
+      <span style="color: #ECBE7B;">PerformTransaction</span> account amount next <span style="color: #dcaeea;">-&gt;</span>
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (<span style="color: #dcaeea;">++</span> (<span style="color: #98be65;">"Performed transaction of "</span> <span style="color: #dcaeea;">++</span>
+                            show amount <span style="color: #dcaeea;">++</span> <span style="color: #98be65;">" to "</span> <span style="color: #dcaeea;">++</span> show account <span style="color: #dcaeea;">++</span> <span style="color: #98be65;">"\n"</span>))
+           pure next
+
+      <span style="color: #ECBE7B;">TopUpCard</span> amount next <span style="color: #dcaeea;">-&gt;</span>
+        <span style="color: #51afef;">do</span> <span style="color: #51afef;">_</span> <span style="color: #dcaeea;">&lt;-</span> modify (<span style="color: #dcaeea;">++</span> (<span style="color: #98be65;">"Performed card topup of "</span> <span style="color: #dcaeea;">++</span>
+                            show amount <span style="color: #dcaeea;">++</span> <span style="color: #98be65;">"\n"</span>))
+           pure next
+
+      <span style="color: #ECBE7B;">CheckBalance</span> next <span style="color: #dcaeea;">-&gt;</span>
+        pure (next funds)
 
    <span style="color: #51afef;">where</span>
      currentAcc <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"current_account"</span>
@@ -207,7 +235,7 @@ A user wants to write a simple program that will run at the start of each month 
 <pre class="src src-haskell"><span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">BankProgram</span> [<span style="color: #ECBE7B;">String</span>]
 <span style="color: #c678dd;">program</span> <span style="color: #dcaeea;">=</span> <span style="color: #51afef;">do</span>
   success <span style="color: #dcaeea;">&lt;-</span> performTransactionSafe (<span style="color: #ECBE7B;">AccountId</span> <span style="color: #98be65;">"GB67BARC20032647753595"</span>)
-                                   amountDue
+                                    amountDue
   funds <span style="color: #dcaeea;">&lt;-</span> checkBalance
 
   success' <span style="color: #dcaeea;">&lt;-</span> <span style="color: #51afef;">if</span> success <span style="color: #dcaeea;">&amp;&amp;</span> funds <span style="color: #dcaeea;">&gt;=</span> (amountDue <span style="color: #dcaeea;">+|</span> amountTopUp)

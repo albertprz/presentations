@@ -33,6 +33,7 @@ newtype AccountId = AccountId String
   deriving (Eq, Ord, Show)
 #+END_SRC
 
+Additional operations:
 #+BEGIN_SRC haskell
 (-|) :: Amount -> Amount -> Amount
 (-|) (Amount am1) (Amount am2) = Amount (am1 - am2)
@@ -119,10 +120,32 @@ interpreter x = case x of
         do _ <- modify (Map.adjust (-| amount) currentAcc)
            pure next
 
-
       CheckBalance next ->
         do funds <- fmap (fromMaybe (Amount 0) . Map.lookup currentAcc) get
            pure (next funds)
+
+   where
+     currentAcc = AccountId "current_account"
+#+END_SRC
+
+** Audit Interpreter
+
+#+BEGIN_SRC haskell
+auditInterpreter :: BankAlgebra a -> State String a
+auditInterpreter x = case x of
+
+      PerformTransaction account amount next ->
+        do _ <- modify (++ ("Performed transaction of " ++
+                            show amount ++ " to " ++ show account ++ "\n"))
+           pure next
+
+      TopUpCard amount next ->
+        do _ <- modify (++ ("Performed card topup of " ++
+                            show amount ++ "\n"))
+           pure next
+
+      CheckBalance next ->
+        pure (next funds)
 
    where
      currentAcc = AccountId "current_account"
@@ -146,7 +169,7 @@ A user wants to write a simple program that will run at the start of each month 
 program :: BankProgram [String]
 program = do
   success <- performTransactionSafe (AccountId "GB67BARC20032647753595")
-                                   amountDue
+                                    amountDue
   funds <- checkBalance
 
   success' <- if success && funds >= (amountDue +| amountTopUp)
