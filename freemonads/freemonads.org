@@ -5,9 +5,9 @@
 #+OPTIONS: toc:nil
 
 
-#+title: Free Monads
+#+title: Intro to Free Monads
 
-* Intro
+* Introduction
 
   - Technique that is focused construction of programs via the sequencing of reified computations.
 

@@ -1,0 +1,250 @@
+#+REVEAL_HLEVEL: 1
+#+REVEAL_INIT_OPTIONS: transition: 'cube'
+#+REVEAL_THEME: moon
+#+EXPORT_AUTHOR: Alberto Perez Lopez
+#+OPTIONS: toc:nil
+
+
+#+title: Parser Combinators
+
+
+* Combinators
+
+** Functions
+
+#+BEGIN_SRC haskell
+class IsMatch a where
+  is      :: a -> Parser a
+  isNot   :: a -> Parser a
+  inverse :: Parser a -> Parser a
+  oneOf   :: [a] -> Parser a
+  noneOf  :: [a] -> Parser a
+
+  instance   IsMatch Char
+  instance   IsMatch String
+  instance   (Num a) => IsMatch a
+#+END_SRC
+
+#+BEGIN_SRC haskell
+within :: Parser a -> Parser b -> Parser b
+
+withinBoth :: Parser a -> Parser b -> Parser c -> Parser c
+
+anySepBy :: Parser a -> Parser b -> Parser [b]
+
+someSepBy :: Parser a -> Parser b -> Parser [b]
+
+manySepBy :: Parser a -> Parser b -> Parser [b]
+#+END_SRC
+
+
+** Operators
+
+#+BEGIN_SRC haskell
+(<|>) :: Parser a -> Parser a -> Parser a
+
+(<#>) :: Parser a -> Integer -> Parser [a]
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+(|?) :: Parser a -> Parser (Maybe a)
+(|?) = maybeTimes
+
+(|*) :: Parser a -> Parser [a]
+(|*) = anyTimes
+
+(|+) :: Parser a -> Parser [a]
+(|+) = someTimes
+
+(|++) :: Parser a -> Parser [a]
+(|++) = manyTimes
+#+END_SRC
+
+
+* Primitive parsers
+
+** Chars
+
+#+BEGIN_SRC haskell
+char :: Parser Char
+char = Parser.char
+
+digit :: Parser Char
+digit = oneOf ['0' .. '9']
+
+upper :: Parser Char
+upper = oneOf ['A' .. 'Z']
+
+lower :: Parser Char
+lower = oneOf ['a' .. 'z']
+
+letter :: Parser Char
+letter = upper <|> lower
+
+alphaNum :: Parser Char
+alphaNum = letter <|> digit
+#+END_SRC
+
+#+BEGIN_SRC haskell
+space :: Parser Char
+space = is ' '
+
+tab :: Parser Char
+tab = is '\t'
+#+END_SRC
+
+** Strings
+
+#+BEGIN_SRC haskell
+string :: Parser String
+string = (char |*)
+
+word :: Parser String
+word = (inverse whiteSpace |+)
+
+digits :: Parser String
+digits = (digit |+)
+
+uppers :: Parser String
+uppers = (upper |+)
+
+lowers :: Parser String
+lowers = (lower |+)
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+withinQuotes :: Parser b -> Parser b
+withinQuotes = within quote
+
+withinDoubleQuotes :: Parser b -> Parser b
+withinDoubleQuotes = within doubleQuote
+#+END_SRC
+
+** Date Components
+
+#+BEGIN_SRC haskell
+range :: Ord a => a -> a -> a -> Bool
+range mn mx x = x >= mn && x <= mx
+
+year :: Parser Integer
+year = digit <#> 4
+
+day :: Parser Int
+day = check "Day" (range 1 31) $ digit <#> 2
+
+month :: Parser Int
+month = check "Month" (range 1 12) $ digit <#> 2
+
+hour :: Parser Int
+hour = check "Hour" (range 0 23) $ digit <#> 2
+
+minute :: Parser Int
+minute = check "Minute" (range 0 59) $ digit <#> 2
+
+second :: Parser Int
+second = check "Second" (range 0 59) $ digit <#> 2
+#+END_SRC
+
+
+** Dates
+
+#+BEGIN_SRC haskell
+
+date :: Parser Day
+date = fromGregorian
+   <$> year <*> within dash month <*> day
+
+
+time :: Parser TimeOfDay
+time = do h <- hour
+          m <- colon *> minute
+          s <- colon *> second
+          decimals <- fromMaybe 0 <$> ((colon *> secondDecimals) |?)
+          pure $ TimeOfDay h m $ read (show s <> "." <> show decimals)
+
+
+localDateTime :: Parser LocalTime
+localDateTime = LocalTime
+     <$> (date <* oneOf ['T', 't']) <*> time
+#+END_SRC
+
+** Collections
+
+
+#+BEGIN_SRC haskell
+listOf :: Parser a -> Parser [a]
+
+tupleOf :: Parser a -> Parser [a]
+
+mapOf :: Ord b => Parser sep -> Parser k -> Parser v -> Parser (Map k v)
+#+END_SRC
+
+
+* Example : JSON parser
+
+** JSON Syntax Tree
+
+#+BEGIN_SRC haskell
+data JsExpression
+  = JsNull
+  | JsNumber Double
+  | JsBool Bool
+  | JsString String
+  | JsArray [JsExpression]
+  | JsObject (Map String JsExpression)
+  deriving (Eq, Ord)
+#+END_SRC
+
+** JSON Elements
+
+#+BEGIN_SRC haskell
+nil :: Parser JsExpression
+nil = JsNull <$ is "null"
+
+number :: Parser JsExpression
+number = JsNumber <$> double
+
+
+bool :: Parser JsExpression
+bool = JsBool <$> (True  <$ is "true" <|>
+                   False <$ is "false")
+
+string :: Parser JsExpression
+string = JsString <$> text
+  where
+    text = withinDoubleQuotes (inverse doubleQuote |*)
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+element :: Parser JsExpression
+element = number <|> bool <|> nil <|> string
+#+END_SRC
+
+** Json Containers
+
+#+BEGIN_SRC haskell
+array :: Parser JsExpression
+array = JsArray <$> listOf json
+
+object :: Parser JsExpression
+object = JsObject <$> mapOf colon text json
+#+END_SRC
+
+
+#+BEGIN_SRC haskell
+container :: Parser JsExpression
+container = array <|> object
+#+END_SRC
+
+** Json parser
+
+#+BEGIN_SRC haskell
+json :: Parser JsExpression
+json = maybeWithin spacing jsValue
+  where
+    jsValue = element <|> container
+#+END_SRC
+
