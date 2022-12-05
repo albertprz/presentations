@@ -11,6 +11,11 @@ We would like to model certain requirements on the execution of the program:
 -   A certain set of validations have to be conducted before the next stage of the process can be achieved
 
 
+## Process schema
+
+![img](./img/process.png)
+
+
 ## Basic Business models
 
   

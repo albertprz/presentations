@@ -16,6 +16,11 @@ We would like to model certain requirements on the execution of the program:
 - The flow of stages in the process will be modified by certain actions. Those actions will also only be available at a particular stage of the process.
 - A certain set of validations have to be conducted before the next stage of the process can be achieved
 
+
+** Process schema
+
+[[./img/process.png]]
+
 ** Basic Business models
 
 \\
