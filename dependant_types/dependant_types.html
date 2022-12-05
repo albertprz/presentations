@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Dependant Types</title>
+<meta name="author" content="Alberto"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.css"/>
+
+<link rel="stylesheet" href="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/theme/moon.css" id="theme"/>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide">
+<h1 class="title">Dependant Types</h1>
+</section>
+
+<section>
+<section id="slide-1">
+<h2 id="1"><span class="section-number-2">1.</span> Example case : Modelling a busines state machine</h2>
+<div class="outline-text-2" id="text-1">
+</div>
+</section>
+<section id="slide-1-1">
+<h3 id="1-1"><span class="section-number-3">1.1.</span> Introduction to the problem</h3>
+<p>
+We would like to model certain requirements on the execution of the program:
+</p>
+
+<ul>
+<li>The flow of stages in the process will be modified by certain actions. Those actions will also only be available at a particular stage of the process.</li>
+<li>A certain set of validations have to be conducted before the next stage of the process can be achieved</li>
+
+</ul>
+
+</section>
+<section id="slide-1-2">
+<h3 id="1-2"><span class="section-number-3">1.2.</span> Basic Business models</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">User</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">Product</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">Cart</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">MkCart</span> [<span style="color: #ECBE7B;">Product</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">PaymentDetails</span>
+</pre>
+</div>
+
+</section>
+<section id="slide-1-3">
+<h3 id="1-3"><span class="section-number-3">1.3.</span> Validations and process stages</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">Validation</span>
+  <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">AuthUser</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">ValidCart</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">ValidPaymentDetails</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">ConfirmedPurchase</span>
+</pre>
+</div>
+
+<p>
+<br />
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">CheckoutState</span>
+  <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">New</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">Paid</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">Complete</span>
+</pre>
+</div>
+
+
+</section>
+<section id="slide-1-4">
+<h3 id="1-4"><span class="section-number-3">1.4.</span> State aggregation model</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">::</span> [<span style="color: #ECBE7B;">Validation</span>]) (b <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutState</span>)
+  <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">MkSummary</span> (<span style="color: #ECBE7B;">User</span>, <span style="color: #ECBE7B;">Cart</span>, <span style="color: #ECBE7B;">PaymentDetails</span>)
+</pre>
+</div>
+
+</section>
+<section id="slide-1-5">
+<h3 id="1-5"><span class="section-number-3">1.5.</span> Application Effect type</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #51afef;">type</span> <span style="color: #ECBE7B;">AppM</span> <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">EitherT</span> <span style="color: #ECBE7B;">ClientError</span> <span style="color: #ECBE7B;">IO</span>
+
+<span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">ClientError</span>
+  <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">ConnectionTimeout</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">NotFound</span>
+</pre>
+</div>
+
+
+</section>
+<section id="slide-1-6">
+<h3 id="1-6"><span class="section-number-3">1.6.</span> Validation functions</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell">
+<span style="color: #c678dd;">authUser</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
+          <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">AuthUser</span>) b)
+</pre>
+</div>
+
+<p>
+<br />
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">validatePaymentDetails</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
+              <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">ValidPaymentDetails</span>) b)
+</pre>
+</div>
+
+<p>
+<br />
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">checkPaymentDetails</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
+                     <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">ValidPaymentDetails</span>) b)
+</pre>
+</div>
+
+<p>
+<br />
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">confirmPurchase</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
+                 <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">ConfirmedPurchase</span>) b)
+</pre>
+</div>
+
+</section>
+<section id="slide-1-7">
+<h3 id="1-7"><span class="section-number-3">1.7.</span> Stage Update functions</h3>
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">checkout</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Must</span> (<span style="color: #ECBE7B;">ContainsMany</span> a ['<span style="color: #ECBE7B;">AuthUser</span>, '<span style="color: #ECBE7B;">ValidPaymentDetails</span>])
+          <span style="color: #dcaeea;">=&gt;</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">New</span>
+          <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Paid</span>)
+</pre>
+</div>
+
+<p>
+<br />
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-haskell"><span style="color: #c678dd;">completePurchase</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Must</span> (<span style="color: #ECBE7B;">ContainsMany</span> a ['<span style="color: #ECBE7B;">AuthUser</span>, '<span style="color: #ECBE7B;">ValidCart</span>,
+                                          '<span style="color: #ECBE7B;">ValidPaymentDetails</span>,
+                                          '<span style="color: #ECBE7B;">ConfirmedPurchase</span>])
+                 <span style="color: #dcaeea;">=&gt;</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Paid</span>
+                 <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Complete</span>)
+</pre>
+</div>
+</section>
+</section>
+</div>
+</div>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/dist/reveal.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/markdown/markdown.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/notes/notes.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/search/search.js"></script>
+<script src="/Users/alberto/.emacs.d/.local/straight/build-28.1/revealjs/plugin/zoom/zoom.js"></script>
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+hashOneBasedIndex: false,
+pdfSeparateFragments: true,
+overview: true,
+
+transition: 'convex',
+transitionSpeed: 'default',
+
+// Plugins with reveal.js 4.x
+plugins: [ RevealMarkdown, RevealNotes, RevealSearch, RevealZoom ],
+
+// Optional libraries used to extend reveal.js
+dependencies: [
+]
+
+});
+</script>
+</body>
+</html>

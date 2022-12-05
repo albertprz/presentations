@@ -1,0 +1,121 @@
+#+REVEAL_HLEVEL: 1
+#+REVEAL_INIT_OPTIONS: transition: 'cube'
+#+REVEAL_THEME: moon
+#+EXPORT_AUTHOR: Alberto Perez Lopez
+#+OPTIONS: toc:nil
+
+
+#+title: Dependant Types
+
+* Example case : Modelling a busines state machine
+
+** Introduction to the problem
+
+We would like to model certain requirements on the execution of the program:
+
+- The flow of stages in the process will be modified by certain actions. Those actions will also only be available at a particular stage of the process.
+- A certain set of validations have to be conducted before the next stage of the process can be achieved
+
+** Basic Business models
+
+#+BEGIN_SRC haskell
+data User
+#+END_SRC
+
+#+BEGIN_SRC haskell
+data Product
+#+END_SRC
+
+#+BEGIN_SRC haskell
+data Cart = MkCart [Product]
+#+END_SRC
+
+#+BEGIN_SRC haskell
+data PaymentDetails
+#+END_SRC
+
+** Validations and process stages
+
+#+BEGIN_SRC haskell
+data Validation
+  = AuthUser
+  | ValidCart
+  | ValidPaymentDetails
+  | ConfirmedPurchase
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+data CheckoutState
+  = New
+  | Paid
+  | Complete
+#+END_SRC
+
+
+** State aggregation model
+
+#+BEGIN_SRC haskell
+data CheckoutSummary (a :: [Validation]) (b :: CheckoutState)
+  = MkSummary (User, Cart, PaymentDetails)
+#+END_SRC
+
+** Application Effect type
+
+#+BEGIN_SRC haskell
+type AppM = EitherT ClientError IO
+
+data ClientError
+  = ConnectionTimeout
+  | NotFound
+#+END_SRC
+
+
+** Validation functions
+
+#+BEGIN_SRC haskell
+
+authUser :: CheckoutSummary a b
+          -> AppM (CheckoutSummary (a |+| 'AuthUser) b)
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+validatePaymentDetails :: CheckoutSummary a b
+              -> AppM (CheckoutSummary (a |+| 'ValidPaymentDetails) b)
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+checkPaymentDetails :: CheckoutSummary a b
+                     -> AppM (CheckoutSummary (a |+| 'ValidPaymentDetails) b)
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+confirmPurchase :: CheckoutSummary a b
+                 -> AppM (CheckoutSummary (a |+| 'ConfirmedPurchase) b)
+#+END_SRC
+
+** Stage Update functions
+
+
+#+BEGIN_SRC haskell
+checkout :: Must (ContainsMany a ['AuthUser, 'ValidPaymentDetails])
+          => CheckoutSummary a 'New
+          -> AppM (CheckoutSummary a 'Paid)
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+completePurchase :: Must (ContainsMany a ['AuthUser, 'ValidCart,
+                                          'ValidPaymentDetails,
+                                          'ConfirmedPurchase])
+                 => CheckoutSummary a 'Paid
+                 -> AppM (CheckoutSummary a 'Complete)
+#+END_SRC
