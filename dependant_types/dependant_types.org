@@ -18,6 +18,8 @@ We would like to model certain requirements on the execution of the program:
 
 ** Basic Business models
 
+\\
+
 #+BEGIN_SRC haskell
 data User
 #+END_SRC
@@ -35,6 +37,8 @@ data PaymentDetails
 #+END_SRC
 
 ** Validations and process stages
+
+\\
 
 #+BEGIN_SRC haskell
 data Validation
@@ -56,12 +60,16 @@ data CheckoutState
 
 ** State aggregation model
 
+\\
+
 #+BEGIN_SRC haskell
 data CheckoutSummary (a :: [Validation]) (b :: CheckoutState)
   = MkSummary (User, Cart, PaymentDetails)
 #+END_SRC
 
 ** Application Effect type
+
+\\
 
 #+BEGIN_SRC haskell
 type AppM = EitherT ClientError IO
@@ -104,6 +112,8 @@ confirmPurchase :: CheckoutSummary a b
 ** Stage Update functions
 
 
+\\
+
 #+BEGIN_SRC haskell
 checkout :: Must (ContainsMany a ['AuthUser, 'ValidPaymentDetails])
           => CheckoutSummary a 'New
@@ -118,4 +128,24 @@ completePurchase :: Must (ContainsMany a ['AuthUser, 'ValidCart,
                                           'ConfirmedPurchase])
                  => CheckoutSummary a 'Paid
                  -> AppM (CheckoutSummary a 'Complete)
+#+END_SRC
+
+** TypeLevel helper functions
+
+\\
+
+#+BEGIN_SRC haskell
+type family (xs :: [a]) |+| (y :: a) :: [a]
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+type family ContainsMany (xs :: [t]) (ys :: [t]) :: Bool
+#+END_SRC
+
+\\
+
+#+BEGIN_SRC haskell
+type family Must (x :: Bool) :: Constraint
 #+END_SRC
