@@ -92,7 +92,7 @@ We would like to model certain requirements on the execution of the program:
 
 <pre class="src src-haskell"><span style="color: #51afef;">data</span> <span style="color: #ECBE7B;">CheckoutState</span>
   <span style="color: #dcaeea;">=</span> <span style="color: #ECBE7B;">New</span>
-  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">Paid</span>
+  <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">InProcess</span>
   <span style="color: #dcaeea;">|</span> <span style="color: #ECBE7B;">Complete</span>
 </pre>
 </div>
@@ -147,8 +147,8 @@ We would like to model certain requirements on the execution of the program:
 
 <div class="org-src-container">
 
-<pre class="src src-haskell"><span style="color: #c678dd;">validatePaymentDetails</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
-              <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">ValidPaymentDetails</span>) b)
+<pre class="src src-haskell"><span style="color: #c678dd;">validateCart</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a b
+              <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> (a <span style="color: #dcaeea;">|+|</span> '<span style="color: #ECBE7B;">ValidCart</span>) b)
 </pre>
 </div>
 
@@ -185,7 +185,7 @@ We would like to model certain requirements on the execution of the program:
 
 <pre class="src src-haskell"><span style="color: #c678dd;">checkout</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Must</span> (<span style="color: #ECBE7B;">ContainsMany</span> a ['<span style="color: #ECBE7B;">AuthUser</span>, '<span style="color: #ECBE7B;">ValidPaymentDetails</span>])
           <span style="color: #dcaeea;">=&gt;</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">New</span>
-          <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Paid</span>)
+          <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">InProcess</span>)
 </pre>
 </div>
 
@@ -198,7 +198,7 @@ We would like to model certain requirements on the execution of the program:
 <pre class="src src-haskell"><span style="color: #c678dd;">completePurchase</span> <span style="color: #dcaeea;">::</span> <span style="color: #ECBE7B;">Must</span> (<span style="color: #ECBE7B;">ContainsMany</span> a ['<span style="color: #ECBE7B;">AuthUser</span>, '<span style="color: #ECBE7B;">ValidCart</span>,
                                           '<span style="color: #ECBE7B;">ValidPaymentDetails</span>,
                                           '<span style="color: #ECBE7B;">ConfirmedPurchase</span>])
-                 <span style="color: #dcaeea;">=&gt;</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Paid</span>
+                 <span style="color: #dcaeea;">=&gt;</span> <span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">InProcess</span>
                  <span style="color: #dcaeea;">-&gt;</span> <span style="color: #ECBE7B;">AppM</span> (<span style="color: #ECBE7B;">CheckoutSummary</span> a '<span style="color: #ECBE7B;">Complete</span>)
 </pre>
 </div>

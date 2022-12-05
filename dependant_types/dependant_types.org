@@ -53,7 +53,7 @@ data Validation
 #+BEGIN_SRC haskell
 data CheckoutState
   = New
-  | Paid
+  | InProcess
   | Complete
 #+END_SRC
 
@@ -91,8 +91,8 @@ authUser :: CheckoutSummary a b
 \\
 
 #+BEGIN_SRC haskell
-validatePaymentDetails :: CheckoutSummary a b
-              -> AppM (CheckoutSummary (a |+| 'ValidPaymentDetails) b)
+validateCart :: CheckoutSummary a b
+              -> AppM (CheckoutSummary (a |+| 'ValidCart) b)
 #+END_SRC
 
 \\
@@ -117,7 +117,7 @@ confirmPurchase :: CheckoutSummary a b
 #+BEGIN_SRC haskell
 checkout :: Must (ContainsMany a ['AuthUser, 'ValidPaymentDetails])
           => CheckoutSummary a 'New
-          -> AppM (CheckoutSummary a 'Paid)
+          -> AppM (CheckoutSummary a 'InProcess)
 #+END_SRC
 
 \\
@@ -126,7 +126,7 @@ checkout :: Must (ContainsMany a ['AuthUser, 'ValidPaymentDetails])
 completePurchase :: Must (ContainsMany a ['AuthUser, 'ValidCart,
                                           'ValidPaymentDetails,
                                           'ConfirmedPurchase])
-                 => CheckoutSummary a 'Paid
+                 => CheckoutSummary a 'InProcess
                  -> AppM (CheckoutSummary a 'Complete)
 #+END_SRC
 

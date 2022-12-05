@@ -1,4 +1,5 @@
 
+
 # Example case : Modelling a busines state machine
 
 
@@ -37,7 +38,7 @@ We would like to model certain requirements on the execution of the program:
 
     data CheckoutState
       = New
-      | Paid
+      | InProcess
       | Complete
 
 
@@ -68,8 +69,8 @@ We would like to model certain requirements on the execution of the program:
 
   
 
-    validatePaymentDetails :: CheckoutSummary a b
-                  -> AppM (CheckoutSummary (a |+| 'ValidPaymentDetails) b)
+    validateCart :: CheckoutSummary a b
+                  -> AppM (CheckoutSummary (a |+| 'ValidCart) b)
 
   
 
@@ -88,14 +89,14 @@ We would like to model certain requirements on the execution of the program:
 
     checkout :: Must (ContainsMany a ['AuthUser, 'ValidPaymentDetails])
               => CheckoutSummary a 'New
-              -> AppM (CheckoutSummary a 'Paid)
+              -> AppM (CheckoutSummary a 'InProcess)
 
   
 
     completePurchase :: Must (ContainsMany a ['AuthUser, 'ValidCart,
                                               'ValidPaymentDetails,
                                               'ConfirmedPurchase])
-                     => CheckoutSummary a 'Paid
+                     => CheckoutSummary a 'InProcess
                      -> AppM (CheckoutSummary a 'Complete)
 
 
@@ -112,5 +113,4 @@ We would like to model certain requirements on the execution of the program:
   
 
     type family Must (x :: Bool) :: Constraint
-
 
